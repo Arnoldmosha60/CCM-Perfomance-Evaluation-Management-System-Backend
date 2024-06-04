@@ -10,29 +10,27 @@ from django.contrib.auth import authenticate, login
 from rest_framework.authtoken.models import Token
 
 
-class RegisterUser(APIView):
+class RegisterView(APIView):
     permission_classes = [AllowAny]
+    queryset = User.objects.all()
 
-    @staticmethod
-    def post(request):
-        data = request.data
-        print(data)
-        serializer = UserSerializer(data=data)
-        if not serializer.is_valid():
-            errors = serializer.errors
-            return Response({'save': False, 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, *args, **kwargs):
+        serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
-            email = data['email']
-            user = User.objects.filter(email=email)
-            if user:
-                return Response({'save': False, 'errors': 'User with this email already exists'},
-                                status=status.HTTP_400_BAD_REQUEST)
+            email = serializer.validated_data.get('email')
+            if User.objects.filter(email=email).exists():
+                return Response(
+                    {"error": "A user with this email already exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             serializer.save()
-            message = {'save': True}
-            return Response(message)
-
-        message = {'save': False, 'errors': serializer.errors}
-        return Response(message)
+            response = {
+                'success': True,
+                'message': 'User registered successfully',
+                'user': serializer.data
+            }
+            return Response(response, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST,)
 
 
 class LoginUser(APIView):
@@ -40,18 +38,18 @@ class LoginUser(APIView):
 
     @staticmethod
     def post(request):
-        username = request.data.get('username')
+        email = request.data.get('email')
         password = request.data.get('password')
-        print('Data', username, password)
-        user = authenticate(username=username, password=password)
+        user = authenticate(email=email, password=password)
         if user is not None:
             login(request, user)
-            user_id = User.objects.get(username=username)
+            user_id = User.objects.get(email=email)
             user_info = UserSerializer(instance=user_id, many=False).data
             token, created = Token.objects.get_or_create(user=user)
             response = {
-                'token': token,
-                'user': user_info
+                'token': token.key,
+                'user': user_info,
+                'success': True
             }
             return Response(response)
         else:
