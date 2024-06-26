@@ -11,8 +11,10 @@ class RepresentativeSerializer(serializers.ModelSerializer):
 
 
 class ObjectiveSerializer(serializers.ModelSerializer):
+    representative = serializers.PrimaryKeyRelatedField(queryset=WilayaRepresentative.objects.all())
+    
     class Meta:
         model = Objective
-        fields = ['objective', 'representative']
+        fields = ['objective', 'representative', 'objective_code']
 
         

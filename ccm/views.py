@@ -50,7 +50,7 @@ class AddWilayaRepresentativeView(APIView):
 
     def generate_unique_code(self):
         while True:
-            code = f"{random.randint(1, 100):04d}"  # Generate a 4-digit code
+            code = f"{random.randint(1, 100000):05d}"  # Generate a 4-digit code
             if not self.wilaya_representative_model.objects.filter(wilaya_code=code).exists():
                 return code
 
@@ -81,7 +81,6 @@ class AddWilayaRepresentativeView(APIView):
 
         try:
             user, created = self.user_model.objects.update_or_create(email=email, defaults=user_data)
-            print(user)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -94,15 +93,18 @@ class AddWilayaRepresentativeView(APIView):
             'mkoa': mkoa,
             'status': True,
             'wilaya_code': wilaya_code,
-            'representative': user.id
+            'representative': str(user.id)
         }
-
+        print(representative_data)
         serializer = self.representative_serializer(data=representative_data, partial=True)
+        print(serializer.is_valid())
         if serializer.is_valid():
             serializer.save()
             userr = self.user_model.objects.get(id=user.id)
             user_serializer = self.user_serializer_class(userr)
             return Response({'success': True, 'representative': serializer.data, 'user': user_serializer.data}, status=status.HTTP_200_OK)
+        else:
+            print(serializer.errors)
         return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
 
@@ -142,6 +144,12 @@ class ObjectiveCreateView(APIView):
     objective_model = Objective
     representative_model = WilayaRepresentative
 
+    def generate_unique_code(self):
+        while True:
+            code = f"{random.randint(1, 100000):05d}"  # Generate a 4-digit code
+            if not self.objective_model.objects.filter(objective_code=code).exists():
+                return code
+
     def post(self, request):
         try:
             # Extract representative_id from request data
@@ -155,7 +163,8 @@ class ObjectiveCreateView(APIView):
             for objective_text in objectives:
                 objective_instance = self.objective_model.objects.create(
                     objective=objective_text,
-                    representative=representative
+                    representative=representative.representative,
+                    objective_code=self.generate_unique_code(),
                 )
                 created_objectives.append(objective_instance)
 
@@ -164,7 +173,16 @@ class ObjectiveCreateView(APIView):
             return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
+            print(f"Error in ObjectiveCreateView: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def get(self, request):
+        try:
+            objectives = self.objective_model.objects.all()
+            serializer = self.serializer_class(objectives, many=True)
+            return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ObjectiveListView(APIView):
