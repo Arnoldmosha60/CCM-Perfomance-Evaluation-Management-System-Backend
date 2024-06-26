@@ -6,20 +6,31 @@ from rest_framework import serializers
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'fullname', 'email', 'password', 'username', 'contact', 'membership_number', 'created_at', 'is_active']
-        extra_kwargs = {'password': {'write_only': True}, 'username': {'required': False}}
+        fields = ['id', 'fullname', 'email', 'password', 'username', 'contact', 'ccm_number', 'created_at', 'is_active']
+        extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
     def create(self, validated_data):
         email = validated_data['email']
+        password = validated_data.pop('password', None)
         user = User.objects.create_user(
             fullname=validated_data['fullname'],
             email=email,
-            username=email,  # Set email as the username
             contact=validated_data['contact'],
-            membership_number=validated_data['membership_number'],
-            password=validated_data['password']
+            ccm_number=validated_data['ccm_number'],
+            password=password
         )
         return user
+    
+    def update(self, instance, validated_data):
+        instance.fullname = validated_data.get('fullname', instance.fullname)
+        instance.email = validated_data.get('email', instance.email)
+        instance.contact = validated_data.get('contact', instance.contact)
+        instance.ccm_number = validated_data.get('ccm_number', instance.ccm_number)
+        password = validated_data.get('password', None)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
 
 class ChangePasswordSerializer(serializers.Serializer):
     model = User
