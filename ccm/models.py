@@ -65,3 +65,19 @@ class Indicator(models.Model):
 
     class Meta:
         db_table = 'indicator'
+
+
+class Activity(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    activity = models.CharField()
+    indicator = models.ForeignKey(Indicator, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    activity_code = models.CharField(max_length=5, unique=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    status = models.BooleanField(default=False)
+
+    def __repr__(self):
+        return repr(self.id)
+    
+    class Meta:
+        db_table = 'activity'

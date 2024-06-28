@@ -33,4 +33,12 @@ class IndicatorSerializer(serializers.ModelSerializer):
         model = Indicator
         fields = '__all__'
 
+
+class ActivitySerializer(serializers.ModelSerializer):
+    indicator = serializers.PrimaryKeyRelatedField(queryset=Indicator.objects.all())
+
+    class Meta:
+        model = Activity
+        fields = '__all__'
+
         

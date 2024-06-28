@@ -387,12 +387,11 @@ class IndicatorListView(APIView):
     model = Indicator
     target_model = Target
 
-    def get(self, target_id):
+    def get(self, request, target_id):
         try:
             target = get_object_or_404(self.target_model, id=target_id)
             indicators = self.model.objects.filter(target=target)
             serializer = self.serializer_class(indicators, many=True)
-            print(serializer.data)
             return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
             print(f"Error in UserIndicatorsView: {str(e)}")
