@@ -4,3 +4,4 @@ from .models import *
 # Register your models here.
 admin.site.register(WilayaRepresentative)
 admin.site.register(Objective)
+admin.site.register(Target)

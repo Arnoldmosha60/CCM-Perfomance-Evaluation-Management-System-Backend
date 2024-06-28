@@ -15,6 +15,14 @@ class ObjectiveSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Objective
-        fields = ['objective', 'representative', 'objective_code']
+        fields = ['id','objective', 'representative', 'objective_code', 'created_by', 'created_at']
+
+
+class TargetSerializer(serializers.ModelSerializer):
+    objective = serializers.PrimaryKeyRelatedField(queryset=Objective.objects.all())
+
+    class Meta:
+        model = Target
+        fields = '__all__'
 
         

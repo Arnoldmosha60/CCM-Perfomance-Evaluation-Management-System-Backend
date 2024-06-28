@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from rest_framework import status
-from ccm.serializers import RepresentativeSerializer, ObjectiveSerializer
+from ccm.serializers import RepresentativeSerializer, ObjectiveSerializer, TargetSerializer
 from user_management.serializers import UserSerializer
 from .models import *
 from django.shortcuts import get_object_or_404
@@ -15,6 +15,18 @@ from django.contrib.auth import get_user_model
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+# models
+# user_model = User
+# objective_model = Objective
+# Indicator_model = Indicator
+# representative_model = WilayaRepresentative
+
+# serializers
+# user_serializer = UserSerializer
+# objective_serializer = ObjectiveSerializer
+# representative_serializer = RepresentativeSerializer
+# indicator_serializer = IndicatorSerializer
 
 # Create your views here.
 class GetMikoa(APIView):
@@ -143,6 +155,7 @@ class ObjectiveCreateView(APIView):
     serializer_class = ObjectiveSerializer
     objective_model = Objective
     representative_model = WilayaRepresentative
+    user_model = User
 
     def generate_unique_code(self):
         while True:
@@ -152,6 +165,8 @@ class ObjectiveCreateView(APIView):
 
     def post(self, request):
         try:
+            admin = request.user
+            adminn = get_object_or_404(self.user_model, email=admin)
             # Extract representative_id from request data
             representative_id = request.data.get('representative_id')
             representative = get_object_or_404(self.representative_model, id=representative_id)
@@ -163,8 +178,9 @@ class ObjectiveCreateView(APIView):
             for objective_text in objectives:
                 objective_instance = self.objective_model.objects.create(
                     objective=objective_text,
-                    representative=representative.representative,
+                    representative=representative,
                     objective_code=self.generate_unique_code(),
+                    created_by=adminn
                 )
                 created_objectives.append(objective_instance)
 
@@ -190,17 +206,90 @@ class ObjectiveListView(APIView):
     authentication_classes = [TokenAuthentication]
     serializer_class = ObjectiveSerializer
     model = Objective
+    representative_model = WilayaRepresentative
 
     def get(self, request, representative_id):
         try:
-            # Filter objectives by representative_id
-            objectives = self.model.objects.filter(representative=representative_id)
-            if not objectives.exists():
-                return Response({'error': 'No objectives found for the specified representative'}, status=status.HTTP_404_NOT_FOUND)
-            # Serialize the filtered objectives for response
-            serializer = self.serializer_class(objectives, many=True)
-            return Response({'success': True, 'objectives': serializer.data}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            # Fetch the representative by ID
+            representative = get_object_or_404(self.representative_model, representative=representative_id)
 
+            # Fetch objectives associated with the representative
+            objectives = self.model.objects.filter(representative=representative.id)
+
+            # Serialize the objectives
+            serializer = self.serializer_class(objectives, many=True)
+            return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"Error in UserObjectivesView: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TargetCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    serializer_class = TargetSerializer
+    model = Target
+    objective_model = Objective
+    user_model = User
+
+    def generate_unique_code(self):
+        while True:
+            code = f"{random.randint(1, 100000):05d}"  # Generate a 4-digit code
+            if not self.model.objects.filter(target_code=code).exists():
+                return code
+    
+    def post(self, request):
+        try:
+            admin = request.user
+            adminn = get_object_or_404(self.user_model, email=admin)
+
+            objective_id = request.data.get('objective_id')
+            objective = get_object_or_404(self.objective_model, id=objective_id)
+
+            targets = request.data.get('targets', [])
+
+            created_targets = []
+            for target in targets:
+                instance = self.model.objects.create(
+                    target=target,
+                    objective=objective,
+                    target_code=self.generate_unique_code(),
+                    created_by=adminn
+                )
+                created_targets.append(instance)
+        
+            serializer = self.serializer_class(created_targets, many=True)
+            return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print(f"Error in TargetCreateView: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get(self, request):
+        try:
+            targets = self.model.objects.all()
+            serializer = self.serializer_class(targets, many=True)
+            return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TargetListView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    serializer_class = TargetSerializer
+    model = Target
+    objective_model = Objective
+
+    def get(self, request, objective_id):
+        try:
+            objective = get_object_or_404(self.objective_model, id=objective_id)
+            targets = self.model.objects.filter(objective=objective)
+            serializer = self.serializer_class(targets, many=True)
+            print(serializer.data)
+            return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f"Error in UserIndicatorsView: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

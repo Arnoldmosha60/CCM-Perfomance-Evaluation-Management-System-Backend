@@ -12,8 +12,8 @@ class WilayaRepresentative(models.Model):
     wilaya_code = models.CharField(max_length=5, unique=True)
     representative = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    def __str__(self):
-        return f"{self.id}"
+    def __repr__(self):
+        return repr(self.id)
     
     class Meta:
         db_table = 'representative'
@@ -21,14 +21,31 @@ class WilayaRepresentative(models.Model):
 
 class Objective(models.Model):
     id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
-    objective = models.CharField(max_length=200)
-    representative = models.ForeignKey(User, on_delete=models.CASCADE)
+    objective = models.CharField()
+    representative = models.ForeignKey(WilayaRepresentative, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     objective_code = models.CharField(max_length=5, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.BooleanField(default=False)
 
-    def __str__(self):
-        return str(self.id)
+    def __repr__(self):
+        return repr(self.id)
     
     class Meta:
         db_table = 'objective'
+
+
+class Target(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    target = models.CharField()
+    objective = models.ForeignKey(Objective, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    target_code = models.CharField(max_length=5, unique=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    status = models.BooleanField(default=False)
+
+    def __repr__(self):
+        return repr(self.id)
+    
+    class Meta:
+        db_table = 'target'

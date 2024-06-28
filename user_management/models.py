@@ -38,8 +38,8 @@ class User(AbstractUser):
 
     objects = CustomUserManager()  # Set the custom user manager
 
-    def __str__(self):
-        return str(self.email)
+    def __repr__(self):
+        return repr(self.id)
 
     class Meta:
         db_table = 'user'
