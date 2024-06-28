@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from rest_framework import status
-from ccm.serializers import RepresentativeSerializer, ObjectiveSerializer, TargetSerializer, IndicatorSerializer
+from ccm.serializers import RepresentativeSerializer, ObjectiveSerializer, TargetSerializer, IndicatorSerializer, ActivitySerializer
 from user_management.serializers import UserSerializer
 from .models import *
 from django.shortcuts import get_object_or_404
@@ -396,7 +396,78 @@ class IndicatorListView(APIView):
         except Exception as e:
             print(f"Error in UserIndicatorsView: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ActivityCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    serializer_class = ActivitySerializer
+    model = Activity
+    indicator_model = Indicator
+    user_model = User
+    user_serializer = UserSerializer
+
+    def generate_unique_code(self):
+        while True:
+            code = f"{random.randint(1, 100000):05d}"  # Generate a 4-digit code
+            if not self.model.objects.filter(activity_code=code).exists():
+                return code
     
+    def post(self, request):
+        try:
+            admin = request.user
+            adminn = get_object_or_404(self.user_model, email=admin)
+
+            indicator_id = request.data.get('indicator_id')
+            indicator = get_object_or_404(self.indicator_model, id=indicator_id)
+
+            activities = request.data.get('activities', [])
+
+            created_activities = []
+            for activity in activities:
+                instance = self.model.objects.create(
+                    activity_code=self.generate_unique_code(),
+                    activity=activity,
+                    indicator=indicator,
+                    created_by=adminn
+                )
+                created_activities.append(instance)
+            serializer = self.serializer_class(created_activities, many=True)
+
+            return Response({
+                'success': True,
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(f"Error in IndicatorCreateView: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get(self, request):
+        try:
+            activities = self.model.objects.select_related('created_by').all()
+            print(activities)
+            serializer = self.serializer_class(activities, many=True)
+            return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ActivityListView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    serializer_class = ActivitySerializer
+    model = Activity
+    indicator_model = Indicator
+
+    def get(self, request, indicator_id):
+        try:
+            indicator = get_object_or_404(self.indicator_model, id=indicator_id)
+            activities = self.model.objects.filter(indicator=indicator)
+            serializer = self.serializer_class(activities, many=True)
+            return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f"Error in UserActivitiesView: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
