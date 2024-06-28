@@ -9,4 +9,6 @@ urlpatterns = [
     path('user-objectives/<uuid:representative_id>/',ObjectiveListView.as_view(), name='get_user_objectives'),
     path('save-targets/', TargetCreateView.as_view(), name="add_objective_targets"),
     path('objective-targets/<uuid:objective_id>/', TargetListView.as_view(), name="get_objective_targets"),
+    path('save-indicators/', IndicatorCreateView.as_view(), name="add_target_indicators"),
+    path('target-indicators/<uuid:target_id>/', IndicatorListView.as_view(), name="get_target_indicators"),
 ]

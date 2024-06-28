@@ -25,4 +25,12 @@ class TargetSerializer(serializers.ModelSerializer):
         model = Target
         fields = '__all__'
 
+
+class IndicatorSerializer(serializers.ModelSerializer):
+    target = serializers.PrimaryKeyRelatedField(queryset=Target.objects.all())
+
+    class Meta:
+        model = Indicator
+        fields = '__all__'
+
         

@@ -49,3 +49,19 @@ class Target(models.Model):
     
     class Meta:
         db_table = 'target'
+
+
+class Indicator(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    indicator = models.CharField()
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    indicator_code = models.CharField(max_length=5, unique=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    status = models.BooleanField(default=False)
+
+    def __repr__(self):
+        return repr(self.id)
+
+    class Meta:
+        db_table = 'indicator'

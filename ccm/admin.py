@@ -5,3 +5,6 @@ from .models import *
 admin.site.register(WilayaRepresentative)
 admin.site.register(Objective)
 admin.site.register(Target)
+admin.site.register(Indicator)
+
+
