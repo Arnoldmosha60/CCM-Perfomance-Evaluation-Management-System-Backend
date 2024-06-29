@@ -59,6 +59,7 @@ class Indicator(models.Model):
     indicator_code = models.CharField(max_length=5, unique=True)
     created_on = models.DateTimeField(auto_now_add=True)
     status = models.BooleanField(default=False)
+    achievement_percentage = models.FloatField(default=0.0)
 
     def __repr__(self):
         return repr(self.id)

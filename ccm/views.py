@@ -373,9 +373,25 @@ class IndicatorCreateView(APIView):
 
     def get(self, request):
         try:
-            indicators = self.model.objects.select_related('created_by').all()
-            serializer = self.serializer_class(indicators, many=True)
-            return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+            indicators = self.model.objects.all()
+            indicator_data = []
+
+            for indicator in indicators:
+                indicator_dict = self.serializer_class(indicator).data
+
+                # Fetch related user data
+                user = User.objects.get(id=indicator.created_by_id)
+                user_data = {
+                    'id': user.id,
+                    'fullname': user.fullname,
+                    'email': user.email,
+                    'contact': user.contact, 
+                    'ccm_number': user.ccm_number,
+                }
+                indicator_dict['created_by'] = user_data
+                indicator_data.append(indicator_dict)
+            
+            return Response({'success': True, 'data': indicator_data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -422,6 +438,7 @@ class ActivityCreateView(APIView):
             indicator = get_object_or_404(self.indicator_model, id=indicator_id)
 
             activities = request.data.get('activities', [])
+            print(activities)
 
             created_activities = []
             for activity in activities:
@@ -470,4 +487,27 @@ class ActivityListView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class MeasureAchievementView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    serializer_class = IndicatorSerializer
+    model = Indicator
+    activity_model = Activity
+
+    def post(self, request, *args, **kwargs):
+        indicator_id = kwargs.get('pk')
+        indicator = self.model.objects.get(id=indicator_id)
+
+        activities = self.activity_model.objects.filter(indicator=indicator)
+        if activities.exists():
+            total_activities = activities.count()
+            completed_activities = self.activity_model.objects.filter(status=True).count()
+            achievement_percentage = (completed_activities / total_activities) * 100
+        else:
+            achievement_percentage = 0.0
+        
+        indicator.achievement_percentage = achievement_percentage
+        indicator.save()
+
+        return Response({"success": True, "achievement_percentage": achievement_percentage}, status=status.HTTP_200_OK)
 
