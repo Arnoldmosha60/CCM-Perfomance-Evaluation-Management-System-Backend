@@ -157,6 +157,7 @@ class ObjectiveCreateView(APIView):
     objective_model = Objective
     representative_model = WilayaRepresentative
     user_model = User
+    user_serializer = UserSerializer
 
     def generate_unique_code(self):
         while True:
@@ -203,7 +204,8 @@ class ObjectiveCreateView(APIView):
 
                 #Fetch representative
                 rep = self.representative_model.objects.get(id=objective.representative_id)
-                rep_serializer = self.representative_serializer(rep)
+                rep_name = self.user_model.objects.get(id=rep.representative_id)
+                rep_serializer = self.user_serializer(rep_name)
                 rep_data = rep_serializer.data
 
                 objective_dict['representative'] = rep_data
@@ -349,14 +351,21 @@ class IndicatorCreateView(APIView):
             target = get_object_or_404(self.target_model, id=target_id)
 
             indicators = request.data.get('indicators', [])
+            indicator_values = request.data.get('indicatorValues', [])
+
+            if len(indicators) != len(indicator_values):
+                return Response({
+                    'msg': 'The number of indicators and indicator values must match.'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
             created_indicators = []
-            for indicator in indicators:
+            for indicator,indicator_value in zip(indicators, indicator_values):
                 instance = self.model.objects.create(
                     indicator=indicator,
                     target=target,
                     indicator_code=self.generate_unique_code(),
-                    created_by=adminn
+                    created_by=adminn,
+                    achievement_percentage=indicator_value
                 )
                 created_indicators.append(instance)
             
