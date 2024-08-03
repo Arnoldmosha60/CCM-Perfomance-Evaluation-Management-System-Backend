@@ -365,7 +365,7 @@ class IndicatorCreateView(APIView):
                     target=target,
                     indicator_code=self.generate_unique_code(),
                     created_by=adminn,
-                    achievement_percentage=indicator_value
+                    indicator_value=indicator_value
                 )
                 created_indicators.append(instance)
             
@@ -446,16 +446,25 @@ class ActivityCreateView(APIView):
             indicator_id = request.data.get('indicator_id')
             indicator = get_object_or_404(self.indicator_model, id=indicator_id)
 
+            # print(request.data)
             activities = request.data.get('activities', [])
-            print(activities)
+            activity_values = request.data.get('activityValues')
+            # print(activities)
+
+            if len(activities) != len(activity_values):
+                return Response({
+                    'msg': 'The number of indicators and indicator values must match.'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             created_activities = []
-            for activity in activities:
+            for activity, activity_value in zip(activities, activity_values):
                 instance = self.model.objects.create(
                     activity_code=self.generate_unique_code(),
                     activity=activity,
                     indicator=indicator,
-                    created_by=adminn
+                    created_by=adminn,
+                    activity_value=activity_value,
+                    status=True
                 )
                 created_activities.append(instance)
             serializer = self.serializer_class(created_activities, many=True)
@@ -503,18 +512,24 @@ class MeasureAchievementView(APIView):
     model = Indicator
     activity_model = Activity
 
-    def post(self, request, *args, **kwargs):
-        indicator_id = kwargs.get('pk')
-        indicator = self.model.objects.get(id=indicator_id)
+    def post(self, request, pk=None):
+        indicator_id = pk
+        try:
+            indicator = self.model.objects.get(id=indicator_id)
+        except self.model.DoesNotExist:
+            return Response({"error": "Indicator not found"}, status=status.HTTP_404_NOT_FOUND)
 
         activities = self.activity_model.objects.filter(indicator=indicator)
         if activities.exists():
-            total_activities = activities.count()
-            completed_activities = self.activity_model.objects.filter(status=True).count()
-            achievement_percentage = (completed_activities / total_activities) * 100
+            total_indicator_value = indicator.indicator_value 
+            print(total_indicator_value) 
+            total_activity_value = sum(activity.activity_value for activity in activities.filter(status=True))
+            print(total_activity_value) 
+            achievement_percentage = (total_activity_value / total_indicator_value) * 100 if total_indicator_value else 0.0
+            print(achievement_percentage) 
         else:
             achievement_percentage = 0.0
-        
+
         indicator.achievement_percentage = achievement_percentage
         indicator.save()
 

@@ -14,19 +14,21 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
     queryset = User.objects.all()
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         serializer = UserSerializer(data=request.data)
+        print(serializer.is_valid())
         if serializer.is_valid():
             email = serializer.validated_data.get('email')
+            print(email)
             if User.objects.filter(email=email).exists():
                 return Response(
-                    {"error": "A user with this email already exists."},
+                    {"msg": "A user with this email already exists."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             serializer.save()
             response = {
                 'success': True,
-                'message': 'User registered successfully',
+                'msg': 'User registered successfully',
                 'user': serializer.data
             }
             return Response(response, status=status.HTTP_201_CREATED)
