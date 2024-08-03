@@ -333,6 +333,7 @@ class IndicatorCreateView(APIView):
     serializer_class = IndicatorSerializer
     target_model = Target
     model = Indicator
+    activity_model = Activity
     user_model = User
     user_serializer = UserSerializer
 
@@ -389,7 +390,7 @@ class IndicatorCreateView(APIView):
                 indicator_dict = self.serializer_class(indicator).data
 
                 # Fetch related user data
-                user = User.objects.get(id=indicator.created_by_id)
+                user = self.user_model.objects.get(id=indicator.created_by_id)
                 user_data = {
                     'id': user.id,
                     'fullname': user.fullname,
@@ -399,7 +400,20 @@ class IndicatorCreateView(APIView):
                 }
                 indicator_dict['created_by'] = user_data
                 indicator_data.append(indicator_dict)
-            
+                # get all activities for the specific indicator
+                # activities = self.activity_model.objects.filter(indicator=indicator)
+                # print(activities)
+                # if activities.exists():
+                #     total_indicator_value = indicator.indicator_value 
+                #     print(total_indicator_value) 
+                #     total_activity_value = sum(activity.activity_value for activity in self.activity_model.filter(status=True))
+                #     print(total_activity_value) 
+                #     achievement_percentage = (total_activity_value / total_indicator_value) * 100 if total_indicator_value else 0.0
+                #     print(achievement_percentage) 
+                # else:
+                #     achievement_percentage = 0.0
+                # indicator.achievement_percentage = achievement_percentage
+                # indicator.save()
             return Response({'success': True, 'data': indicator_data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -504,34 +518,37 @@ class ActivityListView(APIView):
             print(f"Error in UserActivitiesView: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class MeasureAchievementView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
     serializer_class = IndicatorSerializer
     model = Indicator
     activity_model = Activity
 
-    def post(self, request, pk=None):
-        indicator_id = pk
-        try:
-            indicator = self.model.objects.get(id=indicator_id)
-        except self.model.DoesNotExist:
-            return Response({"error": "Indicator not found"}, status=status.HTTP_404_NOT_FOUND)
+    def get(self, request):
+        indicators = self.model.objects.all()
+        indicator_data = []
 
-        activities = self.activity_model.objects.filter(indicator=indicator)
-        if activities.exists():
-            total_indicator_value = indicator.indicator_value 
-            print(total_indicator_value) 
-            total_activity_value = sum(activity.activity_value for activity in activities.filter(status=True))
-            print(total_activity_value) 
-            achievement_percentage = (total_activity_value / total_indicator_value) * 100 if total_indicator_value else 0.0
-            print(achievement_percentage) 
-        else:
-            achievement_percentage = 0.0
+        for indicator in indicators:
+            activities = self.activity_model.objects.filter(indicator=indicator)
+            total_activity_value = sum(activity.activity_value for activity in activities if activity.status)
+            
+            if total_activity_value > 0:
+                achievement_percentage = (indicator.indicator_value / total_activity_value) * 100
+            else:
+                achievement_percentage = indicator.achievement_percentage
+            
+            achievement_percentage = round(achievement_percentage, 2)
+            indicator.achievement_percentage = achievement_percentage
+            indicator.save()
+            
+            indicator_data.append({
+                'id': indicator.id,
+                'indicator_code': indicator.indicator_code,
+                'indicator': indicator.indicator,
+                'created_by': indicator.created_by.fullname,
+                'created_on': indicator.created_on,
+                'achievement_percentage': achievement_percentage,
+            })
 
-        indicator.achievement_percentage = achievement_percentage
-        indicator.save()
-
-        return Response({"success": True, "achievement_percentage": achievement_percentage}, status=status.HTTP_200_OK)
-
+        return Response({"success": True, "data": indicator_data}, status=status.HTTP_200_OK)
