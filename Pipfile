@@ -9,6 +9,8 @@ djangorestframework = "*"
 psycopg2 = "*"
 django-cors-headers = "*"
 mtaa = "*"
+reportlab = "*"
+xhtml2pdf = "*"
 
 [dev-packages]
 

@@ -6,29 +6,111 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from rest_framework import status
 from ccm.serializers import RepresentativeSerializer, ObjectiveSerializer, TargetSerializer, IndicatorSerializer, ActivitySerializer
+from core import settings
 from user_management.serializers import UserSerializer
 from .models import *
 from django.shortcuts import get_object_or_404
 import random
 import logging
 from django.contrib.auth import get_user_model
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
-# models
-# user_model = User
-# objective_model = Objective
-# Indicator_model = Indicator
-# representative_model = WilayaRepresentative
+class GenerateReport(APIView):
+    authentication_classes = [TokenAuthentication]
+    rep_model = WilayaRepresentative
+    rep_serializer = RepresentativeSerializer
+    objective_model = Objective
+    objective_serializer = ObjectiveSerializer
+    target_model = Target
+    target_serializer = TargetSerializer
+    indicator_model = Indicator
+    indicator_serializer = IndicatorSerializer
+    user_model = User
+    user_serializer = UserSerializer
+    activity_model = Activity
+    activity_serializer = ActivitySerializer
 
-# serializers
-# user_serializer = UserSerializer
-# objective_serializer = ObjectiveSerializer
-# representative_serializer = RepresentativeSerializer
-# indicator_serializer = IndicatorSerializer
+    def get(self, request):
+        query = request.query_params.get('query')
+        if not query:
+            return Response({'msg': 'No query parameter provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = self.user_model.objects.get(email=query)
+        except self.user_model.DoesNotExist:
+            return Response({'msg': 'No user available'}, status=status.HTTP_404_NOT_FOUND)
 
-# Create your views here.
+        try:
+            rep = self.rep_model.objects.get(representative=user)
+        except self.rep_model.DoesNotExist:
+            return Response({'msg': 'No representative found for the user'}, status=status.HTTP_404_NOT_FOUND)
+
+        objectives = self.objective_model.objects.filter(representative=rep)
+        data = {
+            'representative': self.rep_serializer(rep).data,
+            'objectives': []
+        }
+
+        for objective in objectives:
+            objective_data = self.objective_serializer(objective).data
+            targets = self.target_model.objects.filter(objective=objective)
+            objective_data['targets'] = []
+
+            for target in targets:
+                target_data = self.target_serializer(target).data
+                indicators = self.indicator_model.objects.filter(target=target)
+                target_data['indicators'] = []
+
+                for indicator in indicators:
+                    indicator_data = self.indicator_serializer(indicator).data
+                    activities = self.activity_model.objects.filter(indicator=indicator)
+                    indicator_data['activities'] = self.activity_serializer(activities, many=True).data
+
+                    target_data['indicators'].append(indicator_data)
+
+                objective_data['targets'].append(target_data)
+
+            data['objectives'].append(objective_data)
+
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+
+        p.drawString(100, height - 80, "CCM - PEMS")
+        p.drawString(100, height - 100, "Report for Representative")
+        p.drawString(100, height - 120, f"Name: {rep.representative.fullname}")
+        p.drawString(100, height - 140, f"Email: {rep.representative.email}")
+
+        y = height - 160
+        for obj in data['objectives']:
+            p.drawString(100, y, f"Objective: {obj['objective']}")
+            y -= 20
+            for tgt in obj['targets']:
+                p.drawString(120, y, f"Target: {tgt['target']}")
+                y -= 20
+                for ind in tgt['indicators']:
+                    p.drawString(140, y, f"Indicator: {ind['indicator']}")
+                    p.drawString(160, y - 20, f"Achievement Percentage: {ind['achievement_percentage']}%")
+                    y -= 40
+                    for act in ind['activities']:
+                        p.drawString(160, y, f"Activity: {act['activity']}")
+                        y -= 20
+
+        p.showPage()
+        p.save()
+
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename=report_{rep.representative.email}.pdf'
+        return response
+
+
 class GetMikoa(APIView):
     permission_classes = [AllowAny]
 

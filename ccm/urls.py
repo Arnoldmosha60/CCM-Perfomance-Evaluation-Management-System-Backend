@@ -15,4 +15,5 @@ urlpatterns = [
     path('indicator-activities/<uuid:indicator_id>/', ActivityListView.as_view(), name='get_indicator_activities'),
     path('indicators/<uuid:pk>/measure/', MeasureAchievementView.as_view(), name='measure_indicator_achievement'),
     path('calculate-achievement-value/', MeasureAchievementView.as_view(), name='get_calculated_achievement_value'),
+    path('generate-report', GenerateReport.as_view(), name='generate_report'),
 ]
