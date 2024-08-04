@@ -388,7 +388,6 @@ class IndicatorCreateView(APIView):
 
             for indicator in indicators:
                 indicator_dict = self.serializer_class(indicator).data
-
                 # Fetch related user data
                 user = self.user_model.objects.get(id=indicator.created_by_id)
                 user_data = {
@@ -400,20 +399,6 @@ class IndicatorCreateView(APIView):
                 }
                 indicator_dict['created_by'] = user_data
                 indicator_data.append(indicator_dict)
-                # get all activities for the specific indicator
-                # activities = self.activity_model.objects.filter(indicator=indicator)
-                # print(activities)
-                # if activities.exists():
-                #     total_indicator_value = indicator.indicator_value 
-                #     print(total_indicator_value) 
-                #     total_activity_value = sum(activity.activity_value for activity in self.activity_model.filter(status=True))
-                #     print(total_activity_value) 
-                #     achievement_percentage = (total_activity_value / total_indicator_value) * 100 if total_indicator_value else 0.0
-                #     print(achievement_percentage) 
-                # else:
-                #     achievement_percentage = 0.0
-                # indicator.achievement_percentage = achievement_percentage
-                # indicator.save()
             return Response({'success': True, 'data': indicator_data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -518,6 +503,7 @@ class ActivityListView(APIView):
             print(f"Error in UserActivitiesView: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class MeasureAchievementView(APIView):
     # permission_classes = [IsAuthenticated]
     # authentication_classes = [TokenAuthentication]
@@ -531,23 +517,18 @@ class MeasureAchievementView(APIView):
 
         for indicator in indicators:
             activities = self.activity_model.objects.filter(indicator=indicator)
-            total_activity_value = sum(activity.activity_value for activity in activities if activity.status)
-            
+            total_activity_value = sum(activity.activity_value for activity in activities)
             if total_activity_value > 0:
                 achievement_percentage = (indicator.indicator_value / total_activity_value) * 100
+                achievement_percentage = round(achievement_percentage, 2)
             else:
                 achievement_percentage = indicator.achievement_percentage
-            
-            achievement_percentage = round(achievement_percentage, 2)
+                
             indicator.achievement_percentage = achievement_percentage
             indicator.save()
-            
+
             indicator_data.append({
                 'id': indicator.id,
-                'indicator_code': indicator.indicator_code,
-                'indicator': indicator.indicator,
-                'created_by': indicator.created_by.fullname,
-                'created_on': indicator.created_on,
                 'achievement_percentage': achievement_percentage,
             })
 
