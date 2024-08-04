@@ -131,21 +131,13 @@ class RepresentativeListView(APIView):
     def get(self, request):
         representatives = self.representative_model.objects.all()
         serialized_data = []
-        
         for representative in representatives:
-            # Serialize the representative data
             representative_serializer = self.serializer_class(representative)
             representative_data = representative_serializer.data
-            
-            # Fetch the associated User object 
             user = self.user_model.objects.get(email=representative.representative)
-            user_serializer = self.user_serializer_class(user)  # Serialize the User object
-            
-            # Append user data to representative data
+            user_serializer = self.user_serializer_class(user)
             representative_data['user'] = user_serializer.data
-            
             serialized_data.append(representative_data)
-        
         return Response({"success": True, 'data': serialized_data}, status=status.HTTP_200_OK)
 
 
@@ -169,13 +161,9 @@ class ObjectiveCreateView(APIView):
         try:
             admin = request.user
             adminn = get_object_or_404(self.user_model, email=admin)
-            # Extract representative_id from request data
             representative_id = request.data.get('representative_id')
             representative = get_object_or_404(self.representative_model, id=representative_id)
-
-            # Extract objectives from request data
             objectives = request.data.get('objectives', [])
-
             created_objectives = []
             for objective_text in objectives:
                 objective_instance = self.objective_model.objects.create(
@@ -185,11 +173,8 @@ class ObjectiveCreateView(APIView):
                     created_by=adminn
                 )
                 created_objectives.append(objective_instance)
-
-            # Serialize the created objectives for response
             serializer = self.serializer_class(created_objectives, many=True)
             return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
-
         except Exception as e:
             print(f"Error in ObjectiveCreateView: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -198,16 +183,12 @@ class ObjectiveCreateView(APIView):
         try:
             objectives = self.objective_model.objects.all()
             objective_data = []
-
             for objective in objectives:
                 objective_dict = self.serializer_class(objective).data
-
-                #Fetch representative
                 rep = self.representative_model.objects.get(id=objective.representative_id)
                 rep_name = self.user_model.objects.get(id=rep.representative_id)
                 rep_serializer = self.user_serializer(rep_name)
                 rep_data = rep_serializer.data
-
                 objective_dict['representative'] = rep_data
                 objective_data.append(objective_dict)
             return Response({'success': True, 'data': objective_data}, status=status.HTTP_200_OK)
@@ -224,16 +205,10 @@ class ObjectiveListView(APIView):
 
     def get(self, request, representative_id):
         try:
-            # Fetch the representative by ID
             representative = get_object_or_404(self.representative_model, representative=representative_id)
-
-            # Fetch objectives associated with the representative
             objectives = self.model.objects.filter(representative=representative.id)
-
-            # Serialize the objectives
             serializer = self.serializer_class(objectives, many=True)
             return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
-
         except Exception as e:
             print(f"Error in UserObjectivesView: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -257,12 +232,9 @@ class TargetCreateView(APIView):
         try:
             admin = request.user
             adminn = get_object_or_404(self.user_model, email=admin)
-
             objective_id = request.data.get('objective_id')
             objective = get_object_or_404(self.objective_model, id=objective_id)
-
             targets = request.data.get('targets', [])
-
             created_targets = []
             for target in targets:
                 instance = self.model.objects.create(
@@ -272,10 +244,8 @@ class TargetCreateView(APIView):
                     created_by=adminn
                 )
                 created_targets.append(instance)
-        
             serializer = self.serializer_class(created_targets, many=True)
             return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
-
         except Exception as e:
             print(f"Error in TargetCreateView: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -284,11 +254,8 @@ class TargetCreateView(APIView):
         try:
             targets = self.model.objects.all()
             target_data = []
-            
             for target in targets:
                 target_dict = self.serializer_class(target).data
-                
-                # Fetch related user data
                 user = User.objects.get(id=target.created_by_id)
                 user_data = {
                     'id': user.id,
@@ -505,8 +472,7 @@ class ActivityListView(APIView):
 
 
 class MeasureAchievementView(APIView):
-    # permission_classes = [IsAuthenticated]
-    # authentication_classes = [TokenAuthentication]
+    authentication_classes = [TokenAuthentication]
     serializer_class = IndicatorSerializer
     model = Indicator
     activity_model = Activity
